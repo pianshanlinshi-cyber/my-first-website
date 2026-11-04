@@ -3,9 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <title>私の初めてのページ</title>
+    <script>
+        // ページを開いたときにパスワードを尋ねる簡易的な仕組み
+        function checkPassword() {
+            const password = prompt("パスワードを入力してください：");
+            if (password !== "secret123") { // ここに設定したいパスワードを書く
+                document.body.innerHTML = "<h1>アクセスが拒否されました</h1>";
+            }
+        }
+    </script>
 </head>
-<body>
+<body onload="checkPassword()">
     <h1>こんにちは！</h1>
-    <p>はじめてHTMLファイル作ってみたよ</p>
+    <p>はじめてHTMLファイルを作ってみました。あいうえお</p>
 </body>
 </html>

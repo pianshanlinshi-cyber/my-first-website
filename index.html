@@ -15,6 +15,29 @@
 </head>
 <body onload="checkPassword()">
     <h1>こんにちは！</h1>
-    <p>はじめてHTMLファイルを作ってみました。あいうえお</p>
+    <p> public int getNumOfShares(int culNumOfShares) {
+        if (this.side.getLabel().equals("SELL")) {
+            return culNumOfShares - this.quantity.intValue();
+        }
+        return culNumOfShares + this.quantity.intValue();
+    }
+
+    public BigDecimal getAveAcquisitionCost(int numOfShares, BigDecimal averageCost) {
+        if (this.side.getLabel().equals("SELL")) {
+            return averageCost;
+        }
+        BigDecimal totalCost = new BigDecimal(numOfShares).multiply(averageCost).add(this.getVolume());
+        BigDecimal totalQuantity = new BigDecimal(numOfShares).add(this.quantity);
+        return totalCost.divide(totalQuantity, 2, RoundingMode.HALF_UP);
+
+
+    }
+
+    public int getPnL(BigDecimal aveAcquisitionCost) {
+        if (this.side.getLabel().equals("SELL")) {
+            return +(this.price.subtract(aveAcquisitionCost)).multiply(this.quantity).intValue();
+        }
+        return 0;
+    }</p>
 </body>
 </html>

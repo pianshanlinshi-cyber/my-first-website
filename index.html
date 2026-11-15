@@ -15,7 +15,9 @@
 </head>
 <body onload="checkPassword()">
     <h1>こんにちは！</h1>
-    <pre></code> public int getNumOfShares(int culNumOfShares) {
+    <p>まずはTradeに追加するコード</p>
+    <pre></code> 
+    public int getNumOfShares(int culNumOfShares) {
         if (this.side.getLabel().equals("SELL")) {
             return culNumOfShares - this.quantity.intValue();
         }
@@ -38,6 +40,140 @@
             return +(this.price.subtract(aveAcquisitionCost)).multiply(this.quantity).intValue();
         }
         return 0;
+    }</code></pre>
+    <p>これはshapeに追加するコード</p>
+    <pre><code>private record Position(String name, String code, int shares, BigDecimal aveCost, int pnl) {}
+    public static String shapeAllPosition(List<Trade> trades) throws IOException {
+        List<Position> positions = getPositions(trades);
+
+        String trial = a(positions);
+        IO.println(trial);
+
+        // 3. 列幅は計算済みの結果から決める（maxWidthsAllPositionは不要）
+        DecimalFormat dInt = new DecimalFormat("#,##0");
+        DecimalFormat d2 = new DecimalFormat("#,##0.00");
+        int nameLen = 4, codeLen = 4, sharesLen = 11, aveLen = 7, pnlLen = 3;
+        for (Position p : positions) {
+            nameLen = Math.max(nameLen, p.name().length());
+            codeLen = Math.max(codeLen, p.code().length());
+            sharesLen = Math.max(sharesLen, dInt.format(p.shares()).length());
+            aveLen = Math.max(aveLen, d2.format(p.aveCost()).length());
+            pnlLen = Math.max(pnlLen, dInt.format(p.pnl()).length());
+        }
+        int totalLen = nameLen + codeLen + sharesLen + aveLen + pnlLen + 16;
+
+        StringBuilder sb = new StringBuilder();
+        sb.repeat("=", totalLen).append("\n");
+        sb.append(String.format("| %-" + nameLen + "s | %-" + codeLen + "s | %"
+                        + sharesLen + "s | %" + aveLen + "s | %" + pnlLen + "s |\n",
+                "Name", "Code", "numOfShares", "aveCost", "PnL"));
+        sb.append("+").repeat("-", nameLen + 2).append("+")
+                .repeat("-", codeLen + 2).append("+")
+                .repeat("-", sharesLen + 2).append("+")
+                .repeat("-", aveLen + 2).append("+")
+                .repeat("-", pnlLen + 2).append("+\n");
+
+        for (Position p : positions) {
+            sb.append(String.format("| %-" + nameLen + "s | %-" + codeLen + "s | %,"
+                            + sharesLen + "d | %," + aveLen + ".2f | %," + pnlLen + "d |\n",
+                    p.name(), p.code(), p.shares(), p.aveCost(), p.pnl()));
+        }
+        sb.repeat("=", totalLen).append("\n");
+        return sb.toString();
+    }
+    public static String shapePosition(List<Trade> trades) throws IOException {
+        int[] maxWidths = maxWidthsPosition(trades);
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm").withResolverStyle(ResolverStyle.STRICT);
+        StringBuilder sb = new StringBuilder();
+
+
+        int dateTimeLen = maxWidths[0];
+        int sideLen =  maxWidths[1];
+        int quantityLen = maxWidths[2];
+        int priceLen = maxWidths[3];
+        int numOfSharesLen = maxWidths[4];
+        int aveAcquisitionCostLen = maxWidths[5];
+        int pnlLen = maxWidths[6];
+
+
+        int totalLen = dateTimeLen + sideLen + quantityLen + priceLen + numOfSharesLen + aveAcquisitionCostLen + pnlLen;
+
+
+        sb.repeat("=", totalLen + 22).append("\n");
+        sb.append(String.format("| %-" + dateTimeLen + "s | %-"
+                        + sideLen + "s | %"
+                        + quantityLen + "s | %"
+                        + priceLen + "s | %"
+                        + numOfSharesLen + "s | %"
+                        + aveAcquisitionCostLen + "s | %"
+                        + pnlLen + "s |\n",
+                "Traded DateTime", "Side", "Quantity", "Price","numOfShares","aveCost","PnL"));
+        sb.append("+").repeat("-", dateTimeLen + 2).append("+")
+                .repeat("-", sideLen + 2).append("+")
+                .repeat("-", quantityLen + 2).append("+")
+                .repeat("-", priceLen + 2).append("+")
+                .repeat("-", numOfSharesLen + 2).append("+")
+                .repeat("-", aveAcquisitionCostLen + 2).append("+")
+                .repeat("-", pnlLen + 2).append("+\n");
+
+        List<Trade> sorted = trades.stream()
+                .sorted(Comparator.comparing(Trade::getDateTime)).toList();
+
+        int culNumShares = 0;
+        BigDecimal aveAcquisitionCost = new BigDecimal(0);
+        int culPnl = 0;
+
+        for (Trade trade : sorted) {
+            String dateTime = trade.getDateTime().format(formatter);
+            String side = trade.getSide().getLabel();
+            BigDecimal quantity = trade.getQuantity();
+            BigDecimal price = trade.getPrice();
+            aveAcquisitionCost = trade.getAveAcquisitionCost(culNumShares, aveAcquisitionCost);
+            culNumShares = trade.getNumOfShares(culNumShares);
+            culPnl = culPnl + trade.getPnL(aveAcquisitionCost);
+
+            sb.append(String.format("| %-" + dateTimeLen + "s | %-"
+                    + sideLen + "s | %,"
+                    + quantityLen + ".0f | %,"
+                    + priceLen + ".1f | %,"
+                    + numOfSharesLen + "d | %,"
+                    + aveAcquisitionCostLen + ".2f | %,"
+                    + pnlLen + "d |"
+                    +"\n", dateTime, side, quantity, price, culNumShares, aveAcquisitionCost, culPnl));
+        }
+        sb.repeat("=", totalLen + 22).append("\n");
+        return sb.toString();
+    }
+    private static int[] maxWidthsPosition(List<Trade> trades) throws IOException {
+        int[] maxWidths = new int[]{15, 4, 8, 5, 11, 7, 3};
+        int[] widths = new int[7];
+
+        DecimalFormat df = new DecimalFormat("#,##0.0");
+        DecimalFormat df2 = new DecimalFormat("#,##0.00");
+        DecimalFormat df3 = new DecimalFormat("#,##0");
+        int culNumOfShares = 0;
+        int pnl = 0;
+        BigDecimal aveAcquisitionCost = new BigDecimal(0);
+        for (Trade trade : trades) {
+            widths[0] = trade.getDateTime().toString().length();
+            widths[1] = trade.getSide().getLabel().length();
+            widths[2] = df.format(trade.getQuantity()).length();
+            widths[3] = df.format(trade.getPrice()).length();
+            culNumOfShares += trade.getQuantity().intValue();
+            widths[4] = String.valueOf(trade.getNumOfShares(culNumOfShares)).length();
+            aveAcquisitionCost = aveAcquisitionCost.add(trade.getAveAcquisitionCost(culNumOfShares, aveAcquisitionCost));
+            widths[5] = df2.format(aveAcquisitionCost).length();
+            pnl += trade.getPnL(aveAcquisitionCost);
+            widths[6] = df3.format(pnl).length();
+
+            for (int i = 0; i < 7; i++) {
+                if (widths[i] > maxWidths[i]) {
+                    maxWidths[i] = widths[i];
+                }
+            }
+        }
+        return maxWidths;
     }</code></pre>
 </body>
 </html>
